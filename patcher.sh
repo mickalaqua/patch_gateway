@@ -1,26 +1,120 @@
 #!/bin/bash
 
 download_folder="/tmp/"
+download_url=https://raw.githubusercontent.com/mickalaqua/patch_gateway/latest
+patch_path="/etc/patch"
 
-function version() {
+file_name="$(basename "$0")"
+log_path="/mnt/mmcblk0p1/patch"
+log_file="$log_path/$file_name.log"
+
+version() {
     echo "v1.0.0"
     # Add your code for Function One here
 }
 
-function logger() {
-    log_file="/mnt/mmcblk0p1/patch.log"
-    echo "$(date +'%Y-%m-%d %H:%M:%S'): $*" >> $log_file
+log() {
+    echo "$(date +'%Y-%m-%d %H:%M:%S')[$file_name]: $*" >> $log_file
 }
 
-function download_last_version() {
-    # Download 
-    https://drive.google.com/file/d/1jsBFTza9uTSlhxVdYuBiMAFUDYvLgyau/view?usp=sharing
-    # check the version
-    # if higher then rename itself and executes the new version
+version_compare() {
+    local version1=$1
+    local version2=$2
+
+    if [[ $version1 == $version2 ]]; then
+        # Versions are equal
+        return 0
+    fi
+
+    local IFS=.
+    local ver1=($version1)
+    local ver2=($version2)
+
+    local max_len=${#ver1[@]}
+    [[ ${#ver2[@]} -gt $max_len ]] && max_len=${#ver2[@]}
+
+    for ((i = 0; i < max_len; i++)); do
+        local num1=${ver1[i]:-0}
+        local num2=${ver2[i]:-0}
+
+        if ((num1 > num2)); then
+            # Version $version1 is greater than $version2
+            return 1
+        elif ((num1 < num2)); then
+            # Version $version1 is less than $version2
+            return 2
+        fi
+    done
+
+    # Versions are equal
+    return 0
 }
 
-function install_script() {
+download_last_version() {
+    # download the last patcher
+    # check if the last patcher version is newer than the current one
+    # If the download version is newer then run it and abort current script
 
+    mkdir $patch_path
+    log "Downloading latest patcher file $download_url/$file_name"
+    curl -o $patch_path/patcher.new.sh $download_url/$file_name
+    chmod +x $patch_path/patcher.new.sh
+
+    new_patcher_version=$($patch_path/patcher.new.sh version)
+    current_patcher_version=version
+    version_result=$(version_compare $new_patcher_version $current_patcher_version)
+    if [[ $version_result == 1 ]]; then
+        log "New file version $new_patcher_version is higher than the current version $current_patcher_version"
+        # run the new script in background
+        $patch_path/patcher.new.sh install &
+        # abort the current script 
+        exit 0
+    fi
+}
+
+download_and_install_patch() {
+    local file_name=$1
+
+    log "Downloading latest $file_name file $download_url/$file_name"
+    curl -o $patch_path/$file_name.new.sh $download_url/$file_name
+    new_file_version=$($patch_path/$file_name.new.sh version)
+
+    $current_file_exist=0
+    $version_result=-1
+    if [ -e "$patch_path/$file_name" ]; then
+        $current_file_exist=1
+        current_file_version=$($patch_path/$file_name version)
+        version_result="$(version_compare $new_patcher_version $current_patcher_version)"
+    fi
+
+    if [[ $version_result == 1 ] || [ $current_file_exist == 1 ]]; then
+        log "New file version $new_patcher_version is higher than the current version $current_patcher_version"
+        res="$($patch_path/$file_name install)"
+        return $res
+    else
+        log "No newer version for $file_name"
+    fi
+
+}
+
+install_patcher() {
+    local file_name=$1
+
+    current_path=$(readlink -f "$file_name" 2>/dev/null || echo "$0")
+    expected_path="$patch_path/patcher.sh"
+    if [$current_path != $expected_path]; then
+        log "moving the installer from $current_path to $expected_path"
+        mv $current_path $expected_path
+    fi
+}
+
+install() {
+    # check install the script at the correct path
+    mkdir $log_path
+    install_patcher $0
+    download_last_version
+    download_and_install_patch "connection_watchdog.sh"
+    download_and_install_patch "configure_modem.sh"
 }
 
 # Check the number of arguments
@@ -37,14 +131,11 @@ case $function_name in
     "version")
         version
         ;;
-    "install_scripts")
-        configure_cron 
-        ;;
-    "check")
-        check_connection
+    "install")
+        install $log_file
         ;;
     *)
-        echo "Invalid function name. Use 'version' or 'install_script'."
+        echo "Invalid function name. Use 'version' or 'install'."
         exit 1
         ;;
 esac
