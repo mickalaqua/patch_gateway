@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 target_address="google.com"
 max_failures=5

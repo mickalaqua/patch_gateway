@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 patch_path="/etc/patch"
 download_url=https://raw.githubusercontent.com/mickalaqua/patch_gateway/last
