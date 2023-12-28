@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 download_folder="/tmp/"
 download_url=https://raw.githubusercontent.com/mickalaqua/patch_gateway/latest
@@ -9,7 +9,7 @@ log_path="/mnt/mmcblk0p1/patch"
 log_file="$log_path/$file_name.log"
 
 version() {
-    echo "v1.0.0"
+    echo "v1.0.1"
     # Add your code for Function One here
 }
 
@@ -67,12 +67,12 @@ download_last_version() {
     chmod +x $patch_path/patcher.new.sh
 
     new_patcher_version=$($patch_path/patcher.new.sh version)
-    current_patcher_version=version
+    current_patcher_version=$(version)
     version_result=$(version_compare $new_patcher_version $current_patcher_version)
     if [[ $version_result == 1 ]]; then
         log "New file version $new_patcher_version is higher than the current version $current_patcher_version"
         # run the new script in background
-        $patch_path/patcher.new.sh install &
+        sh $patch_path/patcher.new.sh install &
         # abort the current script 
         exit 0
     fi
@@ -85,15 +85,15 @@ download_and_install_patch() {
     curl -o $patch_path/$file_name.new.sh $download_url/$file_name
     new_file_version=$($patch_path/$file_name.new.sh version)
 
-    $current_file_exist=0
-    $version_result=-1
+    current_file_exist=0
+    version_result=-1
     if [ -e "$patch_path/$file_name" ]; then
         $current_file_exist=1
-        current_file_version=$($patch_path/$file_name version)
+        current_file_version=$(sh $patch_path/$file_name version)
         version_result="$(version_compare $new_patcher_version $current_patcher_version)"
     fi
 
-    if [[ $version_result == 1 ] || [ $current_file_exist == 1 ]]; then
+    if [ $version_result == 1 ] || [ $current_file_exist == 1 ]; then
         log "New file version $new_patcher_version is higher than the current version $current_patcher_version"
         res="$($patch_path/$file_name install)"
         return $res
@@ -108,9 +108,9 @@ install_patcher() {
 
     current_path=$(readlink -f "$file_name" 2>/dev/null || echo "$0")
     expected_path="$patch_path/patcher.sh"
-    if [$current_path != $expected_path]; then
+    if [ "$current_path" != "$expected_path" ]; then
         log "moving the installer from $current_path to $expected_path"
-        mv $current_path $expected_path
+        mv "$current_path" "$expected_path"
     fi
 }
 
