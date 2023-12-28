@@ -5,6 +5,13 @@ max_failures=5
 interval=600
 failures=0
 
+file_name="$(basename "$0")"
+log_file="/tmp/$filename.log"
+
+log() {
+    echo "$(date +'%Y-%m-%d %H:%M:%S')[$file_name]: $*" >> $log_file
+}
+
 info() {
     logger -t connection_watchdog "$*"
     echo "$*"
@@ -68,7 +75,7 @@ dumpConnectionsStatus() {
     showProcess
 }
 
-function check_connection() {
+check_connection() {
 
     while true; do
         if ping -c 1 -W 1 "$target_address" > /dev/null 2>&1; then
@@ -93,25 +100,24 @@ function check_connection() {
     done
 }
 
-
-function version() {
+version() {
     echo "v1.0.0"
     # Add your code for Function One here
 }
 
-function delete_cron_entry() {
+delete_cron_entry() {
     local executable_name=$1
     # Check if the cron entry exists
     if crontab -l | grep -q -E "\b$executable_name\b"; then
         # If the entry exists, delete the line
         (crontab -l | sed -E "/\b$executable_name\b/d") | crontab -
-        echo "Cron entry for $executable_name deleted."
+        log "Cron entry for $executable_name deleted."
     else
-        echo "Cron entry for $executable_name not found."
+        log "Cron entry for $executable_name not found."
     fi
 }
 
-function update_or_add_cron_entry(){
+update_or_add_cron_entry(){
     local original_executable_name=$1
     local new_executable_name=$1
     local cron_schedule=$1
@@ -119,20 +125,22 @@ function update_or_add_cron_entry(){
     # Check if the cron entry exists
     if crontab -l | grep -q -E "\b$executable_name\b"; then
         # If the entry exists, update the line
-        echo "Cron entry exist : $(crontab -l | grep -q -E "\b$executable_name\b")"
+        log "Cron entry exist : $(crontab -l | grep -q -E "\b$executable_name\b")"
         (crontab -l | sed -E "/\b$executable_name\b/c$new_executable_name $command") | crontab -
-        echo "Cron entry updated with : $(crontab -l | grep -q -E "\b$executable_name\b")"
+        log "Cron entry updated with : $(crontab -l | grep -q -E "\b$executable_name\b")"
     else
         # If the entry doesn't exist, add a new one
         (crontab -l; echo "$new_executable_name $command") | crontab -
-        echo "New cron entry added for $executable_name."
+        log "New cron entry added for $executable_name."
     fi
 }
 
-function configure_cron() {
+configure_cron() {
     # delete alternative cron entry for an alternative script name
+    log_file=$2
     delete_cron_entry "communication_watchdog"
     update_or_add_cron_entry "connection_watchdog" "/etc/connection_watchdog.sh" "*/10 * * * *"
+    exit 0
 }
 
 # Check the number of arguments
@@ -149,14 +157,14 @@ case $function_name in
     "version")
         version
         ;;
-    "configure_cron")
-        configure_cron 
+    "install")
+        configure_cron $2
         ;;
     "check")
         check_connection
         ;;
     *)
-        echo "Invalid function name. Use 'version', 'configure_cron' or 'check'."
+        echo "Invalid function name. Use 'version', 'install' or 'check'."
         exit 1
         ;;
 esac
