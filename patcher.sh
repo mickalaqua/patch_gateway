@@ -18,30 +18,36 @@ log() {
 }
 
 version_compare() {
-    local version1=$1
-    local version2=$2
+    local version1="$1"
+    local version2="$2"
 
-    if [[ $version1 == $version2 ]]; then
+    if [ "$version1" = "$version2" ]; then
         # Versions are equal
         return 0
     fi
 
     local IFS=.
-    local ver1=($version1)
-    local ver2=($version2)
+    local ver1=""
+    local ver2=""
+    local num1
+    local num2
 
-    local max_len=${#ver1[@]}
-    [[ ${#ver2[@]} -gt $max_len ]] && max_len=${#ver2[@]}
+    # Split version strings into individual components
+    while [ -n "$version1" ] || [ -n "$version2" ]; do
+        num1="${version1%%.*}"
+        version1="${version1#*.}"
 
-    for ((i = 0; i < max_len; i++)); do
-        local num1=${ver1[i]:-0}
-        local num2=${ver2[i]:-0}
+        num2="${version2%%.*}"
+        version2="${version2#*.}"
 
-        if ((num1 > num2)); then
+        num1="${num1:-0}"
+        num2="${num2:-0}"
+
+        if [ "$num1" -gt "$num2" ]; then
             # Version $version1 is greater than $version2
             return 1
-        elif ((num1 < num2)); then
-            # Version $version1 is less than $version2
+        elif [ "$num1" -lt "$num2" ]; then
+            # Version $version1 is less than $version2
             return 2
         fi
     done
